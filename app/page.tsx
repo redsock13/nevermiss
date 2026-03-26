@@ -1,457 +1,983 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { gsap } from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 
 gsap.registerPlugin(ScrollTrigger);
 
-/* ── SCRAMBLE ── */
-const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%";
-function scramble(el: HTMLElement, target: string, ms = 900) {
-  const frames = Math.round(ms / 30); const obj = { f: 0 };
-  const run = () => {
-    el.textContent = target.split("").map((c, i) =>
-      c === " " ? " " : obj.f / frames > i / target.length ? c : CHARS[Math.floor(Math.random() * CHARS.length)]
-    ).join("");
-    if (obj.f++ < frames) requestAnimationFrame(run); else el.textContent = target;
-  };
-  run();
+// ─── Color tokens ───────────────────────────────────────────────────────────
+const C = {
+  bg: "#0b0f1e",
+  card: "#111827",
+  border: "#1e2d4a",
+  teal: "#00d4a8",
+  tealHover: "#00b894",
+  white: "#ffffff",
+  gray: "#94a3b8",
+  muted: "#475569",
+  danger: "#ef4444",
+};
+
+// ─── Shared button styles ────────────────────────────────────────────────────
+const btnTeal = {
+  background: C.teal,
+  color: "#000",
+  border: "none",
+  padding: "12px 24px",
+  borderRadius: "8px",
+  fontWeight: 700,
+  fontSize: "15px",
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "6px",
+  transition: "background 0.2s",
+  whiteSpace: "nowrap" as const,
+};
+const btnDark = {
+  background: "transparent",
+  color: C.white,
+  border: `1.5px solid ${C.border}`,
+  padding: "12px 24px",
+  borderRadius: "8px",
+  fontWeight: 600,
+  fontSize: "15px",
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "6px",
+  transition: "border-color 0.2s, background 0.2s",
+  whiteSpace: "nowrap" as const,
+};
+
+// ─── Section label ────────────────────────────────────────────────────────────
+function Label({ text }: { text: string }) {
+  return (
+    <p style={{ color: C.teal, fontSize: "12px", fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase", marginBottom: "12px" }}>
+      {text}
+    </p>
+  );
 }
 
-/* ── WAVEFORM ── */
-function Waveform({ active }: { active: boolean }) {
+// ─── Section wrapper ─────────────────────────────────────────────────────────
+function Section({ id, children, style }: { id?: string; children: React.ReactNode; style?: React.CSSProperties }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 3, height: 36 }}>
-      {Array.from({ length: 12 }, (_, i) => (
-        <div key={i} style={{
-          width: 3, borderRadius: 99, background: "#2563eb",
-          transition: "height .15s ease",
-          height: active ? `${8 + Math.sin(Date.now() / 200 + i) * 14 + 14}px` : "4px",
-          animation: active ? `waveform ${.4 + i * .07}s ease-in-out infinite alternate` : "none",
-          animationDelay: `${i * 0.06}s`,
-        }} />
-      ))}
+    <section id={id} style={{ padding: "96px 0", position: "relative", ...style }}>
+      <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 24px" }}>
+        {children}
+      </div>
+    </section>
+  );
+}
+
+// ─── Card ─────────────────────────────────────────────────────────────────────
+function Card({ children, style, highlighted }: { children: React.ReactNode; style?: React.CSSProperties; highlighted?: boolean }) {
+  return (
+    <div style={{
+      background: highlighted ? `${C.card}` : C.card,
+      border: `1.5px solid ${highlighted ? C.teal : C.border}`,
+      borderRadius: "12px",
+      padding: "24px",
+      position: "relative",
+      ...style,
+    }}>
+      {children}
     </div>
   );
 }
 
-/* ── PHONE ANIMATION ── */
-function PhoneHero() {
-  const [state, setState] = useState<"idle"|"ringing"|"answered">("idle");
-  const [callText, setCallText] = useState("Incoming call...");
-
+// ─── NAV ─────────────────────────────────────────────────────────────────────
+function Nav() {
+  const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
-    const cycle = () => {
-      setState("ringing");
-      setCallText("Incoming call...");
-      setTimeout(() => {
-        setState("answered");
-        setCallText("NeverMiss AI answering...");
-      }, 1800);
-      setTimeout(() => {
-        setCallText("Lead qualified ✓ Appointment booked");
-      }, 4000);
-      setTimeout(() => {
-        setState("idle");
-        setCallText("Incoming call...");
-      }, 7000);
-    };
-    const t = setTimeout(cycle, 800);
-    const i = setInterval(cycle, 8000);
-    return () => { clearTimeout(t); clearInterval(i); };
+    const handler = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handler);
+    return () => window.removeEventListener("scroll", handler);
   }, []);
 
-  const BG = { background: "linear-gradient(135deg,#2563eb,#06b6d4)", WebkitBackgroundClip: "text" as const, WebkitTextFillColor: "transparent" as const };
+  return (
+    <nav style={{
+      position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000,
+      background: scrolled ? "rgba(11,15,30,0.95)" : "transparent",
+      backdropFilter: scrolled ? "blur(12px)" : "none",
+      borderBottom: scrolled ? `1px solid ${C.border}` : "none",
+      transition: "all 0.3s",
+    }}>
+      <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 24px", display: "flex", alignItems: "center", justifyContent: "space-between", height: "68px" }}>
+        {/* Logo */}
+        <a href="#" style={{ textDecoration: "none", fontSize: "20px", fontWeight: 800, color: C.white }}>
+          Never<span style={{ color: C.teal }}>Miss</span>
+        </a>
+
+        {/* Links */}
+        <div className="nav-links" style={{ display: "flex", gap: "32px" }}>
+          {["How it works", "Features", "Integrations", "Pricing", "FAQ"].map((link) => (
+            <a key={link} href={`#${link.toLowerCase().replace(/\s+/g, "-")}`}
+              style={{ color: C.gray, textDecoration: "none", fontSize: "14px", fontWeight: 500, transition: "color 0.2s" }}
+              onMouseEnter={e => (e.currentTarget.style.color = C.white)}
+              onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
+              {link}
+            </a>
+          ))}
+        </div>
+
+        {/* CTA */}
+        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <a href="#" style={{ color: C.gray, textDecoration: "none", fontSize: "14px", fontWeight: 500 }}>Sign in</a>
+          <button style={{ ...btnTeal, padding: "9px 18px", fontSize: "14px" }}
+            onMouseEnter={e => (e.currentTarget.style.background = C.tealHover)}
+            onMouseLeave={e => (e.currentTarget.style.background = C.teal)}>
+            Start free →
+          </button>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+// ─── HERO ─────────────────────────────────────────────────────────────────────
+function Hero() {
+  return (
+    <section style={{ paddingTop: "140px", paddingBottom: "80px", background: C.bg }}>
+      <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 24px" }}>
+        <div className="hero-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "64px", alignItems: "center" }}>
+
+          {/* LEFT */}
+          <div>
+            {/* Badge */}
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: "8px",
+              background: `rgba(0,212,168,0.08)`, border: `1px solid rgba(0,212,168,0.25)`,
+              borderRadius: "100px", padding: "6px 14px", marginBottom: "28px",
+              fontSize: "13px", color: C.teal, fontWeight: 600,
+            }}>
+              🤖 AI-powered voice receptionist
+            </div>
+
+            {/* H1 */}
+            <h1 style={{ fontSize: "clamp(36px,5vw,58px)", fontWeight: 800, lineHeight: 1.1, marginBottom: "20px", color: C.white }}>
+              Never miss a call.<br />
+              <span style={{ color: C.teal }}>Never lose a customer.</span>
+            </h1>
+
+            {/* Subtitle */}
+            <p style={{ fontSize: "18px", color: C.gray, lineHeight: 1.7, marginBottom: "36px", maxWidth: "480px" }}>
+              AI receptionist that answers calls, books appointments, and captures leads 24/7 — built for service businesses.
+            </p>
+
+            {/* CTAs */}
+            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginBottom: "28px" }}>
+              <button style={btnTeal}
+                onMouseEnter={e => (e.currentTarget.style.background = C.tealHover)}
+                onMouseLeave={e => (e.currentTarget.style.background = C.teal)}>
+                Start free — no card needed →
+              </button>
+              <button style={btnDark}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = C.teal; e.currentTarget.style.background = "rgba(0,212,168,0.05)"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = "transparent"; }}>
+                📞 Try live demo
+              </button>
+            </div>
+
+            {/* Trust */}
+            <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
+              {["50 free calls included", "No credit card required", "Setup in under 10 minutes"].map((t) => (
+                <span key={t} style={{ fontSize: "13px", color: C.gray, display: "flex", alignItems: "center", gap: "6px" }}>
+                  <span style={{ color: C.teal, fontWeight: 700 }}>✓</span> {t}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* RIGHT — Chat mockup */}
+          <div style={{ position: "relative" }}>
+            {/* Floating badge top-right */}
+            <div className="float-badge" style={{
+              position: "absolute", top: "-20px", right: "-10px", zIndex: 2,
+              background: C.card, border: `1px solid ${C.border}`, borderRadius: "10px",
+              padding: "10px 14px", fontSize: "12px", color: C.white, fontWeight: 600,
+            }}>
+              ⭐ 4.9 customer rating<br />
+              <span style={{ color: C.muted, fontWeight: 400 }}>Post-call surveys</span>
+            </div>
+
+            {/* Main card */}
+            <div style={{
+              background: C.card, border: `1.5px solid ${C.border}`, borderRadius: "16px",
+              overflow: "hidden", boxShadow: "0 24px 64px rgba(0,0,0,0.4)",
+            }}>
+              {/* Header */}
+              <div style={{
+                background: "#0d1526", padding: "14px 20px", display: "flex", alignItems: "center", gap: "10px",
+                borderBottom: `1px solid ${C.border}`,
+              }}>
+                <span className="pulse-dot" style={{
+                  width: "10px", height: "10px", borderRadius: "50%", background: C.teal,
+                  display: "inline-block",
+                }} />
+                <span style={{ fontWeight: 700, fontSize: "14px", color: C.white }}>AI Receptionist Active</span>
+                <span style={{ marginLeft: "auto", fontSize: "12px", color: C.muted }}>NeverMiss</span>
+              </div>
+
+              {/* Chat bubbles */}
+              <div style={{ padding: "24px", display: "flex", flexDirection: "column", gap: "12px", minHeight: "260px" }}>
+                {/* Caller 1 */}
+                <div className="chat-bubble" style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+                  <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#1e2d4a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", flexShrink: 0 }}>👤</div>
+                  <div>
+                    <p style={{ fontSize: "11px", color: C.muted, marginBottom: "4px" }}>CALLER</p>
+                    <div style={{ background: "#1e2d4a", borderRadius: "0 10px 10px 10px", padding: "10px 14px", fontSize: "14px", color: C.white, maxWidth: "260px" }}>
+                      Hi, I&apos;d like to book a plumbing inspection for Thursday.
+                    </div>
+                  </div>
+                </div>
+
+                {/* AI 1 */}
+                <div className="chat-bubble" style={{ display: "flex", gap: "8px", alignItems: "flex-start", justifyContent: "flex-end" }}>
+                  <div style={{ textAlign: "right" }}>
+                    <p style={{ fontSize: "11px", color: C.teal, marginBottom: "4px" }}>NEVERMISS AI</p>
+                    <div style={{ background: `rgba(0,212,168,0.1)`, border: `1px solid rgba(0,212,168,0.2)`, borderRadius: "10px 0 10px 10px", padding: "10px 14px", fontSize: "14px", color: C.white, maxWidth: "280px" }}>
+                      Of course! I have Thursday at 10am and 2pm available. Which works better?
+                    </div>
+                  </div>
+                  <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: `rgba(0,212,168,0.15)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", flexShrink: 0 }}>🤖</div>
+                </div>
+
+                {/* Caller 2 */}
+                <div className="chat-bubble" style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
+                  <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#1e2d4a", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", flexShrink: 0 }}>👤</div>
+                  <div>
+                    <p style={{ fontSize: "11px", color: C.muted, marginBottom: "4px" }}>CALLER</p>
+                    <div style={{ background: "#1e2d4a", borderRadius: "0 10px 10px 10px", padding: "10px 14px", fontSize: "14px", color: C.white, maxWidth: "260px" }}>
+                      2pm would be great.
+                    </div>
+                  </div>
+                </div>
+
+                {/* AI 2 */}
+                <div className="chat-bubble" style={{ display: "flex", gap: "8px", alignItems: "flex-start", justifyContent: "flex-end" }}>
+                  <div style={{ textAlign: "right" }}>
+                    <p style={{ fontSize: "11px", color: C.teal, marginBottom: "4px" }}>NEVERMISS AI</p>
+                    <div style={{ background: `rgba(0,212,168,0.1)`, border: `1px solid rgba(0,212,168,0.2)`, borderRadius: "10px 0 10px 10px", padding: "10px 14px", fontSize: "14px", color: C.white, maxWidth: "280px" }}>
+                      Perfect — you&apos;re booked for Thursday at 2pm. I&apos;ll send you a confirmation text.
+                    </div>
+                  </div>
+                  <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: `rgba(0,212,168,0.15)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", flexShrink: 0 }}>🤖</div>
+                </div>
+              </div>
+
+              {/* Bottom badge */}
+              <div className="chat-status" style={{
+                margin: "0 20px 20px", background: "rgba(0,212,168,0.06)", border: `1px solid rgba(0,212,168,0.2)`,
+                borderRadius: "8px", padding: "10px 14px", fontSize: "13px", color: C.teal, fontWeight: 600, textAlign: "center",
+              }}>
+                ✓ Appointment booked · SMS sent · Calendar updated
+              </div>
+            </div>
+
+            {/* Floating badge bottom */}
+            <div className="float-badge-2" style={{
+              position: "absolute", bottom: "-16px", left: "-10px", zIndex: 2,
+              background: C.card, border: `1px solid ${C.border}`, borderRadius: "10px",
+              padding: "10px 14px", fontSize: "12px", color: C.white, fontWeight: 600,
+            }}>
+              📊 98% booking accuracy<br />
+              <span style={{ color: C.muted, fontWeight: 400 }}>Zero double-bookings</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── STATS BAR ────────────────────────────────────────────────────────────────
+function StatsBar() {
+  const stats = [
+    { value: "98%", label: "Call answer rate" },
+    { value: "10 min", label: "Average setup" },
+    { value: "24/7", label: "Always available" },
+    { value: "50+", label: "Integrations" },
+  ];
+  return (
+    <div style={{ borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, background: C.card }}>
+      <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 24px" }}>
+        <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "0" }}>
+          {stats.map((s, i) => (
+            <div key={i} style={{
+              padding: "32px 24px", textAlign: "center",
+              borderRight: i < stats.length - 1 ? `1px solid ${C.border}` : "none",
+            }}>
+              <p style={{ fontSize: "36px", fontWeight: 800, color: C.teal, marginBottom: "4px" }}>{s.value}</p>
+              <p style={{ fontSize: "14px", color: C.gray }}>{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── THE PROBLEM ──────────────────────────────────────────────────────────────
+function TheProblem() {
+  const cards = [
+    { stat: "62%", desc: "of small business calls go unanswered", biggest: false },
+    { stat: "$4,800", desc: "lost revenue per month from missed calls", biggest: true },
+    { stat: "85%", desc: "of callers won't call back if unanswered", biggest: false },
+    { stat: "27%", desc: "of revenue lost to poor phone handling", biggest: false },
+  ];
+  return (
+    <Section id="the-problem">
+      <div style={{ textAlign: "center", marginBottom: "56px" }}>
+        <Label text="THE PROBLEM" />
+        <h2 style={{ fontSize: "clamp(28px,4vw,44px)", fontWeight: 800, color: C.white, marginBottom: "16px" }}>
+          Missed calls are <span style={{ color: C.teal }}>killing</span> your revenue
+        </h2>
+        <p style={{ fontSize: "18px", color: C.gray, maxWidth: "480px", margin: "0 auto" }}>
+          Every unanswered call is a customer you&apos;ll never get back.
+        </p>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "20px" }}>
+        {cards.map((c, i) => (
+          <div key={i} className="reveal" style={{ position: "relative" }}>
+            {c.biggest && (
+              <div style={{
+                position: "absolute", top: "-12px", left: "50%", transform: "translateX(-50%)",
+                background: C.danger, color: C.white, fontSize: "10px", fontWeight: 800,
+                padding: "3px 10px", borderRadius: "100px", letterSpacing: "1px", whiteSpace: "nowrap",
+              }}>
+                BIGGEST LOSS
+              </div>
+            )}
+            <Card highlighted={c.biggest}>
+              <p style={{ fontSize: "42px", fontWeight: 800, color: c.biggest ? C.danger : C.teal, marginBottom: "12px" }}>{c.stat}</p>
+              <p style={{ fontSize: "15px", color: C.gray, lineHeight: 1.5 }}>{c.desc}</p>
+            </Card>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+// ─── HOW IT WORKS ─────────────────────────────────────────────────────────────
+function HowItWorks() {
+  const steps = [
+    {
+      num: "01", icon: "🔗", title: "Paste your website URL",
+      desc: "Our AI reads your entire website in seconds. Services, pricing, hours, FAQ. No manual setup needed.",
+    },
+    {
+      num: "02", icon: "🤖", title: "AI builds your receptionist",
+      desc: "A custom voice agent is created with your business knowledge. Speaks naturally, answers questions, books appointments.",
+    },
+    {
+      num: "03", icon: "📞", title: "Go live in minutes",
+      desc: "Get a dedicated phone number. Forward your business line. Your AI receptionist starts answering calls immediately — 24/7.",
+    },
+  ];
+  return (
+    <Section id="how-it-works" style={{ background: `${C.card}10` }}>
+      <div style={{ textAlign: "center", marginBottom: "56px" }}>
+        <Label text="HOW IT WORKS" />
+        <h2 style={{ fontSize: "clamp(28px,4vw,44px)", fontWeight: 800, color: C.white, marginBottom: "16px" }}>
+          Live in 3 steps. Under 10 minutes.
+        </h2>
+        <p style={{ fontSize: "18px", color: C.gray }}>
+          No technical skills needed. If you have a website, you&apos;re ready to go.
+        </p>
+      </div>
+      <div className="how-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "32px" }}>
+        {steps.map((s) => (
+          <div key={s.num} className="reveal" style={{ position: "relative" }}>
+            <div style={{ fontSize: "80px", fontWeight: 900, color: "#ffffff08", position: "absolute", top: "-10px", left: "0", lineHeight: 1, userSelect: "none" }}>{s.num}</div>
+            <Card style={{ paddingTop: "36px" }}>
+              <div style={{ width: "44px", height: "44px", background: `rgba(0,212,168,0.15)`, borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", marginBottom: "16px" }}>
+                {s.icon}
+              </div>
+              <h3 style={{ fontSize: "18px", fontWeight: 700, color: C.white, marginBottom: "10px" }}>{s.title}</h3>
+              <p style={{ fontSize: "15px", color: C.gray, lineHeight: 1.6 }}>{s.desc}</p>
+            </Card>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+// ─── BEFORE / AFTER ───────────────────────────────────────────────────────────
+function BeforeAfter() {
+  const without = [
+    { main: "Missed call from (555) 234-5678", sub: "Potential customer — gone" },
+    { main: 'Voicemail: "Hi, I wanted to book..."', sub: "Never listened to" },
+    { main: "Missed call from (555) 876-5432", sub: "Called your competitor instead" },
+    { main: "After-hours call — no one available", sub: "Lost a $400 job" },
+  ];
+  const with_ = [
+    { main: "AI answered — booked plumbing job for Mike R.", sub: "Thursday 2pm confirmed" },
+    { main: "AI answered — provided pricing, sent SMS", sub: "Lead captured and followed up" },
+    { main: "AI answered — scheduled consultation for James R.", sub: "New customer acquired" },
+    { main: "After-hours call handled by AI", sub: "Appointment booked at 11pm" },
+  ];
+  return (
+    <Section>
+      <div style={{ textAlign: "center", marginBottom: "56px" }}>
+        <h2 style={{ fontSize: "clamp(28px,4vw,44px)", fontWeight: 800, color: C.white, marginBottom: "16px" }}>
+          Same calls. Completely different outcomes.
+        </h2>
+        <p style={{ fontSize: "18px", color: C.gray }}>
+          See what happens when every call gets answered — even at 2am on a Sunday.
+        </p>
+      </div>
+      <div className="before-after-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+        {/* Without */}
+        <Card style={{ borderColor: "rgba(239,68,68,0.3)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "24px" }}>
+            <span style={{ fontSize: "18px" }}>❌</span>
+            <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#ef4444" }}>Without NeverMiss</h3>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {without.map((item, i) => (
+              <div key={i} style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                <span style={{ color: C.danger, fontWeight: 700, marginTop: "2px", flexShrink: 0 }}>✗</span>
+                <div>
+                  <p style={{ fontSize: "14px", color: C.white, fontWeight: 500 }}>{item.main}</p>
+                  <p style={{ fontSize: "13px", color: C.muted }}>{item.sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: `1px solid rgba(239,68,68,0.2)`, fontSize: "14px", fontWeight: 700, color: C.danger }}>
+            4 missed calls = $1,800+ lost this week
+          </div>
+        </Card>
+
+        {/* With */}
+        <Card style={{ borderColor: "rgba(0,212,168,0.3)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "24px" }}>
+            <span style={{ fontSize: "18px" }}>✅</span>
+            <h3 style={{ fontSize: "16px", fontWeight: 700, color: C.teal }}>With NeverMiss</h3>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {with_.map((item, i) => (
+              <div key={i} style={{ display: "flex", gap: "10px", alignItems: "flex-start" }}>
+                <span style={{ color: C.teal, fontWeight: 700, marginTop: "2px", flexShrink: 0 }}>✓</span>
+                <div>
+                  <p style={{ fontSize: "14px", color: C.white, fontWeight: 500 }}>{item.main}</p>
+                  <p style={{ fontSize: "13px", color: C.muted }}>{item.sub}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: `1px solid rgba(0,212,168,0.2)`, fontSize: "14px", fontWeight: 700, color: C.teal }}>
+            4 calls answered = 3 appointments booked
+          </div>
+        </Card>
+      </div>
+    </Section>
+  );
+}
+
+// ─── FEATURES ─────────────────────────────────────────────────────────────────
+function Features() {
+  const tabs = ["Call Management", "Booking & Scheduling", "CRM & Customers", "AI Intelligence", "Multi-Channel"];
+  const [active, setActive] = useState(0);
+
+  const features = [
+    { icon: "📞", title: "24/7 call answering", desc: "AI answers every call instantly. No hold times, no voicemail." },
+    { icon: "📲", title: "Smart call transfer", desc: "AI knows when to handle and when to transfer. Custom routing." },
+    { icon: "🎧", title: "Call recordings & playback", desc: "Every call recorded in your dashboard." },
+    { icon: "📋", title: "AI call summaries", desc: "Key details, action items, follow-ups extracted instantly." },
+    { icon: "🛡️", title: "Spam filtering", desc: "Blocks robocalls and telemarketers. Only real customers get through." },
+    { icon: "📊", title: "Call analytics", desc: "Track volume, peak hours, conversion rates." },
+  ];
 
   return (
-    <div style={{ position: "relative", width: 320, height: 320, display: "flex", alignItems: "center", justifyContent: "center" }}>
-      {/* Rings */}
-      {state === "ringing" && (
-        <>
-          <div className="ring" style={{ position: "absolute", top: "50%", left: "50%", border: "2px solid rgba(37,99,235,.7)", borderRadius: "50%" }} />
-          <div className="ring" style={{ position: "absolute", top: "50%", left: "50%", border: "2px solid rgba(37,99,235,.5)", borderRadius: "50%" }} />
-          <div className="ring" style={{ position: "absolute", top: "50%", left: "50%", border: "2px solid rgba(37,99,235,.3)", borderRadius: "50%" }} />
-        </>
-      )}
-      {/* Phone card */}
-      <div style={{
-        background: "rgba(255,255,255,.04)", border: `1px solid ${state === "answered" ? "rgba(37,99,235,.4)" : "rgba(255,255,255,.08)"}`,
-        borderRadius: 24, padding: "28px 32px", width: 280, backdropFilter: "blur(24px)",
-        boxShadow: state === "answered" ? "0 0 40px rgba(37,99,235,.2)" : "0 20px 60px rgba(0,0,0,.4)",
-        transition: "all .4s ease",
-        animation: state === "idle" ? "none" : "callIn .4s ease",
-      }}>
-        <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 20 }}>
-          <div style={{
-            width: 48, height: 48, borderRadius: "50%",
-            background: state === "answered" ? "linear-gradient(135deg,#2563eb,#06b6d4)" : "rgba(255,255,255,.1)",
-            display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22,
-            transition: "background .4s",
-          }}>
-            {state === "answered" ? "🤖" : "📞"}
-          </div>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 14, color: "#f0f4ff" }}>
-              {state === "answered" ? "NeverMiss AI" : "+1 (602) 555-0184"}
-            </div>
-            <div style={{ fontSize: 12, color: state === "answered" ? "#2563eb" : "#475569" }}>
-              {state === "ringing" ? "● Ringing" : state === "answered" ? "● Live" : "Waiting..."}
-            </div>
-          </div>
-        </div>
-        <div style={{ fontSize: 13, color: "#94a3b8", marginBottom: 16, lineHeight: 1.5, minHeight: 36 }}>
-          {callText}
-        </div>
-        <Waveform active={state === "answered"} />
+    <Section id="features" style={{ background: `${C.card}20` }}>
+      <div style={{ textAlign: "center", marginBottom: "48px" }}>
+        <Label text="FEATURES" />
+        <h2 style={{ fontSize: "clamp(28px,4vw,44px)", fontWeight: 800, color: C.white, marginBottom: "16px" }}>
+          Everything you need. Nothing you don&apos;t.
+        </h2>
+        <p style={{ fontSize: "18px", color: C.gray }}>40+ features built for businesses that care about every customer call.</p>
       </div>
 
-      {/* Floating badges */}
-      {state === "answered" && (
-        <>
-          <div className="float" style={{ position: "absolute", top: 20, right: -10, background: "rgba(4,5,15,.95)", borderRadius: 12, padding: "8px 14px", fontSize: 12, fontWeight: 700, border: "1px solid rgba(37,99,235,.2)", whiteSpace: "nowrap", color: "#06b6d4" }}>
-            ✓ Appointment booked
+      {/* Tab nav */}
+      <div style={{ display: "flex", gap: "0", borderBottom: `1px solid ${C.border}`, marginBottom: "40px", overflowX: "auto" }}>
+        {tabs.map((t, i) => (
+          <button key={t} onClick={() => setActive(i)} style={{
+            background: "none", border: "none", cursor: "pointer",
+            padding: "12px 20px", fontSize: "14px", fontWeight: 600, whiteSpace: "nowrap",
+            color: active === i ? C.teal : C.gray,
+            borderBottom: active === i ? `2px solid ${C.teal}` : "2px solid transparent",
+            transition: "all 0.2s",
+          }}>
+            {t}
+          </button>
+        ))}
+      </div>
+
+      {/* Feature grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "20px" }}>
+        {features.map((f, i) => (
+          <div key={i} className="reveal">
+            <Card>
+              <div style={{ fontSize: "28px", marginBottom: "12px" }}>{f.icon}</div>
+              <h3 style={{ fontSize: "16px", fontWeight: 700, color: C.white, marginBottom: "8px" }}>{f.title}</h3>
+              <p style={{ fontSize: "14px", color: C.gray, lineHeight: 1.6 }}>{f.desc}</p>
+            </Card>
           </div>
-          <div className="float2" style={{ position: "absolute", bottom: 20, left: -10, background: "rgba(4,5,15,.95)", borderRadius: 12, padding: "8px 14px", fontSize: 12, fontWeight: 700, border: "1px solid rgba(37,99,235,.2)", whiteSpace: "nowrap", color: "#2563eb" }}>
-            24/7 • Never sleeps
-          </div>
-        </>
-      )}
-    </div>
+        ))}
+      </div>
+    </Section>
   );
 }
 
-/* ── MAG BTN ── */
-function MagBtn({ children, href, primary, big, onClick }: { children: React.ReactNode; href?: string; primary?: boolean; big?: boolean; onClick?: () => void }) {
-  const r = useRef<HTMLAnchorElement>(null);
-  const onMove = (e: React.MouseEvent) => { const b = r.current!.getBoundingClientRect(); gsap.to(r.current, { x: (e.clientX - b.left - b.width / 2) * .28, y: (e.clientY - b.top - b.height / 2) * .28, duration: .3, ease: "power2.out" }); };
-  const onLeave = () => gsap.to(r.current, { x: 0, y: 0, duration: .6, ease: "elastic.out(1,.4)" });
+// ─── INTEGRATIONS ─────────────────────────────────────────────────────────────
+function Integrations() {
+  const items = [
+    { icon: "📅", name: "Google Calendar", desc: "Sync bookings automatically", tag: "Calendar", tagColor: "#3b82f6" },
+    { icon: "🗓️", name: "Calendly", desc: "Connect your scheduling links", tag: "Calendar", tagColor: "#3b82f6" },
+    { icon: "💬", name: "WhatsApp", desc: "Send confirmations via WhatsApp", tag: "Messaging", tagColor: "#22c55e" },
+    { icon: "📱", name: "Twilio", desc: "Reliable SMS & voice backbone", tag: "Telecom", tagColor: "#8b5cf6" },
+    { icon: "🏢", name: "Google Business", desc: "Manage your business profile", tag: "Business", tagColor: "#f59e0b" },
+    { icon: "💳", name: "Stripe", desc: "Collect deposits over the phone", tag: "Payments", tagColor: "#6366f1" },
+    { icon: "🎙️", name: "Vapi.ai", desc: "Ultra-realistic voice AI engine", tag: "Voice AI", tagColor: "#00d4a8" },
+    { icon: "🔗", name: "Webhooks", desc: "Send data to any platform", tag: "Developer", tagColor: "#64748b" },
+    { icon: "🔊", name: "ElevenLabs", desc: "Natural voice synthesis", tag: "Voice", tagColor: "#ec4899" },
+    { icon: "📲", name: "SMS / Twilio", desc: "2-way SMS with customers", tag: "Messaging", tagColor: "#22c55e" },
+  ];
   return (
-    <a ref={r} href={href || "#contact"} onMouseMove={onMove} onMouseLeave={onLeave} onClick={onClick}
-      style={{ display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none", padding: big ? "17px 44px" : "13px 28px", borderRadius: 999, fontSize: big ? 17 : 15, fontWeight: 700, background: primary ? "linear-gradient(135deg,#2563eb,#06b6d4)" : "rgba(37,99,235,.08)", color: primary ? "#fff" : "#60a5fa", border: primary ? "none" : "1px solid rgba(37,99,235,.2)", boxShadow: primary ? "0 8px 32px rgba(37,99,235,.35), inset 0 1px 0 rgba(255,255,255,.1)" : "none", flexShrink: 0, cursor: "none" }}>
-      {children}
-    </a>
+    <Section id="integrations">
+      <div style={{ textAlign: "center", marginBottom: "56px" }}>
+        <h2 style={{ fontSize: "clamp(28px,4vw,44px)", fontWeight: 800, color: C.white, marginBottom: "16px" }}>
+          Connects with tools you already use
+        </h2>
+        <p style={{ fontSize: "18px", color: C.gray }}>
+          NeverMiss integrates with your calendar, messaging, and business tools out of the box.
+        </p>
+      </div>
+      <div className="integration-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "16px" }}>
+        {items.map((item, i) => (
+          <div key={i} className="reveal">
+            <Card style={{ padding: "20px", textAlign: "center" }}>
+              <div style={{ fontSize: "32px", marginBottom: "10px" }}>{item.icon}</div>
+              <p style={{ fontSize: "14px", fontWeight: 700, color: C.white, marginBottom: "4px" }}>{item.name}</p>
+              <p style={{ fontSize: "12px", color: C.muted, marginBottom: "10px", lineHeight: 1.4 }}>{item.desc}</p>
+              <span style={{ fontSize: "11px", fontWeight: 700, color: item.tagColor, background: `${item.tagColor}18`, padding: "2px 8px", borderRadius: "100px" }}>
+                {item.tag}
+              </span>
+            </Card>
+          </div>
+        ))}
+      </div>
+    </Section>
   );
 }
 
-/* ── COUNTER ── */
-function Counter({ to, prefix = "", suffix = "" }: { to: number; prefix?: string; suffix?: string }) {
-  const r = useRef<HTMLSpanElement>(null);
-  useEffect(() => {
-    const o = { v: 0 };
-    gsap.to(o, { v: to, duration: 2.2, ease: "power3.out", scrollTrigger: { trigger: r.current, start: "top 85%", once: true }, onUpdate: () => { if (r.current) r.current.textContent = prefix + Math.round(o.v).toLocaleString() + suffix; } });
-  }, [to, prefix, suffix]);
-  return <span ref={r}>{prefix}0{suffix}</span>;
+// ─── COMPARISON TABLE ─────────────────────────────────────────────────────────
+function ComparisonTable() {
+  const Y = <span className="comp-yes" style={{ color: C.teal, fontWeight: 700 }}>✓</span>;
+  const N = <span className="comp-no" style={{ color: C.danger, fontWeight: 700 }}>✗</span>;
+  const M = <span className="comp-maybe" style={{ color: C.muted }}>—</span>;
+
+  const rows: [string, React.ReactNode, React.ReactNode, React.ReactNode][] = [
+    ["24/7 availability", N, N, Y],
+    ["Answers instantly", N, Y, Y],
+    ["Books appointments", N, Y, Y],
+    ["Sends SMS confirmations", N, M, Y],
+    ["Captures caller info", N, Y, Y],
+    ["Handles multiple calls at once", N, N, Y],
+    ["Never calls in sick", Y, N, Y],
+    ["Call analytics", N, N, Y],
+    ["Sentiment analysis", N, N, Y],
+    ["Customer CRM", N, N, Y],
+    ["WhatsApp integration", N, N, Y],
+    ["Monthly cost", "$0*", "$2,500+", <span key="nm" style={{ color: C.teal, fontWeight: 800 }}>$149</span>],
+  ];
+
+  return (
+    <Section style={{ background: `${C.card}20` }}>
+      <div style={{ textAlign: "center", marginBottom: "56px" }}>
+        <h2 style={{ fontSize: "clamp(28px,4vw,44px)", fontWeight: 800, color: C.white }}>Why NeverMiss?</h2>
+      </div>
+      <div className="comp-table-wrap">
+        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "14px" }}>
+          <thead>
+            <tr>
+              {["Feature", "Voicemail", "Human receptionist", "NeverMiss"].map((h, i) => (
+                <th key={h} style={{
+                  padding: "14px 20px", textAlign: i === 0 ? "left" : "center",
+                  color: i === 3 ? C.teal : C.gray, fontWeight: 700, fontSize: i === 3 ? "15px" : "14px",
+                  borderBottom: `1px solid ${C.border}`,
+                  background: i === 3 ? `rgba(0,212,168,0.05)` : "transparent",
+                }}>
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(([feat, vm, human, nm], i) => (
+              <tr key={i} style={{ background: i % 2 === 0 ? `${C.card}50` : "transparent" }}>
+                <td style={{ padding: "14px 20px", color: C.gray, textAlign: "left" }}>{feat}</td>
+                <td style={{ padding: "14px 20px", textAlign: "center", color: C.white }}>{vm}</td>
+                <td style={{ padding: "14px 20px", textAlign: "center", color: C.white }}>{human}</td>
+                <td style={{ padding: "14px 20px", textAlign: "center", color: C.white, background: "rgba(0,212,168,0.03)" }}>{nm}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p style={{ marginTop: "12px", fontSize: "12px", color: C.muted }}>* Voicemail is free, but costs ~$4,800/mo in lost revenue.</p>
+      </div>
+    </Section>
+  );
 }
 
-/* ────────── PAGE ────────── */
-export default function Home() {
-  const root = useRef<HTMLDivElement>(null);
+// ─── INDUSTRIES ───────────────────────────────────────────────────────────────
+function Industries() {
+  const list = [
+    { icon: "🔧", name: "HVAC & Plumbing", desc: "Book service calls, answer pricing questions, dispatch technicians.", metric: "3x more jobs booked after-hours" },
+    { icon: "🏠", name: "Roofing & Construction", desc: "Capture leads, schedule estimates, follow up on quotes.", metric: "Cut missed call rate by 90%" },
+    { icon: "⚡", name: "Electricians", desc: "Handle emergency calls, schedule inspections, provide pricing.", metric: "Never miss an emergency job" },
+    { icon: "⚖️", name: "Law Firms", desc: "Capture every lead, qualify potential clients, schedule consultations 24/7.", metric: "Never miss a potential client call" },
+    { icon: "🦷", name: "Dental Clinics", desc: "Book cleanings, answer insurance questions, confirm appointments.", metric: "3x more appointments booked after-hours" },
+    { icon: "💆", name: "Med Spas & Aesthetics", desc: "Professional first impression for high-value consultations.", metric: "40% increase in bookings" },
+    { icon: "🐾", name: "Veterinary Clinics", desc: "Handle urgent pet calls with empathy. Triage by symptoms.", metric: "24/7 emergency call triage" },
+    { icon: "🏡", name: "Real Estate Agents", desc: "Capture buyer and seller leads instantly. Schedule viewings.", metric: "2x more leads captured per week" },
+  ];
+  return (
+    <Section id="industries">
+      <div style={{ textAlign: "center", marginBottom: "56px" }}>
+        <Label text="INDUSTRIES" />
+        <h2 style={{ fontSize: "clamp(28px,4vw,44px)", fontWeight: 800, color: C.white, marginBottom: "16px" }}>
+          Built for service businesses
+        </h2>
+        <p style={{ fontSize: "18px", color: C.gray, maxWidth: "560px", margin: "0 auto" }}>
+          Whether you run a plumbing company or a law firm, NeverMiss speaks your industry&apos;s language.
+        </p>
+      </div>
+      <div className="industry-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "16px" }}>
+        {list.map((item, i) => (
+          <div key={i} className="reveal">
+            <Card style={{ height: "100%" }}>
+              <div style={{ fontSize: "30px", marginBottom: "12px" }}>{item.icon}</div>
+              <h3 style={{ fontSize: "15px", fontWeight: 700, color: C.white, marginBottom: "8px" }}>{item.name}</h3>
+              <p style={{ fontSize: "13px", color: C.gray, lineHeight: 1.5, marginBottom: "14px" }}>{item.desc}</p>
+              <p style={{ fontSize: "12px", color: C.teal, fontWeight: 700 }}>↗ {item.metric}</p>
+            </Card>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+// ─── TESTIMONIALS ─────────────────────────────────────────────────────────────
+function Testimonials() {
+  const topStats = [
+    { value: "98%", label: "Call answer rate" },
+    { value: "5/5", label: "Customer satisfaction" },
+    { value: "10 min", label: "Average setup" },
+    { value: "Zero", label: "Missed calls" },
+  ];
+  const reviews = [
+    {
+      stars: 5, quote: "We were losing 8-10 calls every weekend. NeverMiss picks up every single one now. We've booked 23 extra jobs this month alone.",
+      name: "Mike Thompson", company: "Thompson Plumbing & HVAC",
+    },
+    {
+      stars: 5, quote: "Setting it up took literally 7 minutes. I pasted my website URL, chose a voice, and it was live. My customers can't tell it's AI.",
+      name: "Sarah Johnson", company: "SJ Electric",
+    },
+  ];
+  return (
+    <Section style={{ background: `${C.card}20` }}>
+      <div style={{ textAlign: "center", marginBottom: "56px" }}>
+        <h2 style={{ fontSize: "clamp(28px,4vw,44px)", fontWeight: 800, color: C.white }}>
+          Trusted by businesses that never miss a beat
+        </h2>
+      </div>
+
+      {/* Top stats */}
+      <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "16px", marginBottom: "48px" }}>
+        {topStats.map((s, i) => (
+          <div key={i} style={{ textAlign: "center", padding: "24px", background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px" }}>
+            <p style={{ fontSize: "32px", fontWeight: 800, color: C.teal }}>{s.value}</p>
+            <p style={{ fontSize: "14px", color: C.gray, marginTop: "4px" }}>{s.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+        {reviews.map((r, i) => (
+          <div key={i} className="reveal">
+          <Card>
+            <div style={{ marginBottom: "16px" }}>{"⭐".repeat(r.stars)}</div>
+            <p style={{ fontSize: "16px", color: C.white, lineHeight: 1.7, fontStyle: "italic", marginBottom: "20px" }}>
+              &ldquo;{r.quote}&rdquo;
+            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div style={{ width: "40px", height: "40px", borderRadius: "50%", background: `rgba(0,212,168,0.15)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" }}>
+                {r.name[0]}
+              </div>
+              <div>
+                <p style={{ fontWeight: 700, color: C.white, fontSize: "14px" }}>{r.name}</p>
+                <p style={{ fontSize: "13px", color: C.muted }}>{r.company}</p>
+              </div>
+            </div>
+          </Card>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+// ─── PRICING ──────────────────────────────────────────────────────────────────
+function Pricing() {
+  const starterFeatures = [
+    "Up to 200 calls/month", "Local US phone number", "24/7 AI answering", "Appointment booking",
+    "SMS confirmations", "Call recordings", "Cancel anytime",
+  ];
+  const growthFeatures = [
+    "Unlimited calls", "2 phone numbers", "Everything in Starter", "Custom AI personality",
+    "CRM integration", "Weekly reports", "Priority support", "Onboarding call",
+  ];
+  return (
+    <Section id="pricing">
+      <div style={{ textAlign: "center", marginBottom: "56px" }}>
+        <h2 style={{ fontSize: "clamp(28px,4vw,44px)", fontWeight: 800, color: C.white, marginBottom: "16px" }}>
+          Simple pricing. Serious results.
+        </h2>
+      </div>
+
+      <div className="pricing-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px", maxWidth: "800px", margin: "0 auto" }}>
+        {/* Starter */}
+        <Card>
+          <p style={{ fontSize: "13px", fontWeight: 700, color: C.muted, letterSpacing: "1px", marginBottom: "8px" }}>STARTER</p>
+          <div style={{ marginBottom: "24px" }}>
+            <span style={{ fontSize: "48px", fontWeight: 800, color: C.white }}>$149</span>
+            <span style={{ color: C.muted, fontSize: "15px" }}>/mo</span>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "28px" }}>
+            {starterFeatures.map((f) => (
+              <div key={f} style={{ display: "flex", gap: "8px", alignItems: "center", fontSize: "14px", color: C.gray }}>
+                <span style={{ color: C.teal, fontWeight: 700 }}>✓</span> {f}
+              </div>
+            ))}
+          </div>
+          <button style={{ ...btnDark, width: "100%", justifyContent: "center" }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = C.teal; e.currentTarget.style.background = "rgba(0,212,168,0.05)"; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.background = "transparent"; }}>
+            Get started
+          </button>
+        </Card>
+
+        {/* Growth */}
+        <div style={{ position: "relative" }}>
+          <div style={{ position: "absolute", top: "-12px", left: "50%", transform: "translateX(-50%)", background: C.teal, color: "#000", fontSize: "11px", fontWeight: 800, padding: "3px 12px", borderRadius: "100px", whiteSpace: "nowrap" }}>
+            MOST POPULAR
+          </div>
+          <Card highlighted style={{ paddingTop: "32px" }}>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: C.teal, letterSpacing: "1px", marginBottom: "8px" }}>GROWTH</p>
+            <div style={{ marginBottom: "24px" }}>
+              <span style={{ fontSize: "48px", fontWeight: 800, color: C.white }}>$249</span>
+              <span style={{ color: C.muted, fontSize: "15px" }}>/mo</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginBottom: "28px" }}>
+              {growthFeatures.map((f) => (
+                <div key={f} style={{ display: "flex", gap: "8px", alignItems: "center", fontSize: "14px", color: C.gray }}>
+                  <span style={{ color: C.teal, fontWeight: 700 }}>✓</span> {f}
+                </div>
+              ))}
+            </div>
+            <button style={{ ...btnTeal, width: "100%", justifyContent: "center" }}
+              onMouseEnter={e => (e.currentTarget.style.background = C.tealHover)}
+              onMouseLeave={e => (e.currentTarget.style.background = C.teal)}>
+              Start free →
+            </button>
+          </Card>
+        </div>
+      </div>
+
+      {/* Comparison note */}
+      <div style={{ display: "flex", justifyContent: "center", gap: "40px", marginTop: "48px", flexWrap: "wrap" }}>
+        {[
+          { label: "Voicemail", cost: "$0", sub: "but $4,800/mo in lost revenue", color: C.danger },
+          { label: "Human receptionist", cost: "$2,500+/mo", sub: "plus sick days & training", color: C.muted },
+          { label: "NeverMiss", cost: "from $149/mo", sub: "no setup fees, cancel anytime", color: C.teal },
+        ].map((c, i) => (
+          <div key={i} style={{ textAlign: "center" }}>
+            <p style={{ fontSize: "13px", color: C.muted, marginBottom: "4px" }}>vs {c.label}</p>
+            <p style={{ fontSize: "22px", fontWeight: 800, color: c.color }}>{c.cost}</p>
+            <p style={{ fontSize: "12px", color: C.muted }}>{c.sub}</p>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+// ─── FAQ ─────────────────────────────────────────────────────────────────────
+function FAQ() {
+  const [open, setOpen] = useState<number | null>(null);
+  const items = [
+    { q: "How long does setup take?", a: "Under 10 minutes. Paste your URL, pick a voice, get a number. Your AI receptionist is live before your next cup of coffee." },
+    { q: "Can callers tell it's AI?", a: "Most can't. Our voices are incredibly natural. You can disclose it or not — your choice." },
+    { q: "What if I already have a phone number?", a: "Forward it to your NeverMiss number. Keep your existing number, your customers keep dialing the same number." },
+    { q: "What happens after my free trial?", a: "You choose a plan. No automatic charges without your approval. We'll remind you before anything is billed." },
+    { q: "Can I customize what the AI says?", a: "Yes. The AI learns from your website, and you can add custom instructions, FAQs, pricing — anything you want it to know." },
+  ];
+  return (
+    <Section id="faq" style={{ background: `${C.card}20` }}>
+      <div style={{ textAlign: "center", marginBottom: "56px" }}>
+        <h2 style={{ fontSize: "clamp(28px,4vw,44px)", fontWeight: 800, color: C.white }}>Frequently asked questions</h2>
+      </div>
+      <div style={{ maxWidth: "720px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "12px" }}>
+        {items.map((item, i) => (
+          <div key={i} style={{
+            background: C.card, border: `1px solid ${open === i ? C.teal : C.border}`,
+            borderRadius: "10px", overflow: "hidden", transition: "border-color 0.2s",
+          }}>
+            <button onClick={() => setOpen(open === i ? null : i)} style={{
+              width: "100%", textAlign: "left", padding: "18px 20px", background: "none", border: "none",
+              cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px",
+            }}>
+              <span style={{ fontWeight: 600, color: C.white, fontSize: "15px" }}>{item.q}</span>
+              <span style={{ color: C.teal, fontSize: "20px", lineHeight: 1, transform: open === i ? "rotate(45deg)" : "none", transition: "transform 0.2s" }}>+</span>
+            </button>
+            <div className={`faq-content${open === i ? " open" : ""}`} style={{ padding: open === i ? "0 20px 18px" : "0 20px" }}>
+              <p style={{ fontSize: "15px", color: C.gray, lineHeight: 1.7 }}>{item.a}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+// ─── CTA FINAL ────────────────────────────────────────────────────────────────
+function FinalCTA() {
   const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
+  return (
+    <section style={{ padding: "96px 0", background: `radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0,212,168,0.08) 0%, transparent 70%), ${C.bg}` }}>
+      <div style={{ maxWidth: "600px", margin: "0 auto", padding: "0 24px", textAlign: "center" }}>
+        <h2 style={{ fontSize: "clamp(28px,4vw,48px)", fontWeight: 800, color: C.white, marginBottom: "16px" }}>
+          Stop losing jobs to voicemail.
+        </h2>
+        <p style={{ fontSize: "18px", color: C.gray, marginBottom: "40px" }}>
+          14-day free trial. 50 free calls included. No credit card required.
+        </p>
+        <div style={{ display: "flex", gap: "12px", maxWidth: "480px", margin: "0 auto 24px" }}>
+          <input
+            type="email" placeholder="Enter your email" value={email} onChange={e => setEmail(e.target.value)}
+            style={{
+              flex: 1, padding: "13px 16px", borderRadius: "8px", border: `1.5px solid ${C.border}`,
+              background: C.card, color: C.white, fontSize: "15px", outline: "none",
+            }}
+            onFocus={e => (e.currentTarget.style.borderColor = C.teal)}
+            onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+          />
+          <button style={btnTeal}
+            onMouseEnter={e => (e.currentTarget.style.background = C.tealHover)}
+            onMouseLeave={e => (e.currentTarget.style.background = C.teal)}>
+            Start free →
+          </button>
+        </div>
+        <div style={{ display: "flex", gap: "20px", justifyContent: "center", flexWrap: "wrap" }}>
+          {["Setup in 10 minutes", "No credit card", "Cancel anytime"].map((t) => (
+            <span key={t} style={{ fontSize: "13px", color: C.muted }}>✓ {t}</span>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
 
-  const BG: React.CSSProperties = { background: "linear-gradient(135deg,#2563eb,#06b6d4)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" };
-  const NICHES = ["Plumber", "HVAC Contractor", "Electrician", "Roofer", "Locksmith", "Pest Control", "Landscaper", "General Contractor"];
+// ─── FOOTER ───────────────────────────────────────────────────────────────────
+function Footer() {
+  const links: Record<string, string[]> = {
+    Product: ["Features", "Integrations", "Pricing", "Changelog"],
+    Company: ["About", "Blog", "Careers", "Contact"],
+    Resources: ["Docs", "API", "Status", "Support"],
+  };
+  return (
+    <footer style={{ borderTop: `1px solid ${C.border}`, background: C.card, padding: "60px 0 32px" }}>
+      <div style={{ maxWidth: "1200px", margin: "0 auto", padding: "0 24px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: "48px", marginBottom: "48px" }}>
+          {/* Brand */}
+          <div>
+            <p style={{ fontSize: "22px", fontWeight: 800, color: C.white, marginBottom: "12px" }}>
+              Never<span style={{ color: C.teal }}>Miss</span>
+            </p>
+            <p style={{ fontSize: "14px", color: C.muted, lineHeight: 1.6 }}>AI receptionist for service businesses</p>
+          </div>
+          {/* Links */}
+          {Object.entries(links).map(([cat, items]) => (
+            <div key={cat}>
+              <p style={{ fontSize: "12px", fontWeight: 700, color: C.muted, letterSpacing: "1px", textTransform: "uppercase", marginBottom: "16px" }}>{cat}</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {items.map(item => (
+                  <a key={item} href="#" style={{ fontSize: "14px", color: C.gray, textDecoration: "none", transition: "color 0.2s" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = C.white)}
+                    onMouseLeave={e => (e.currentTarget.style.color = C.gray)}>
+                    {item}
+                  </a>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: "24px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+          <p style={{ fontSize: "13px", color: C.muted }}>© 2026 NeverMiss · contact@mindforge-ia.com</p>
+          <p style={{ fontSize: "13px", color: C.muted }}>Made with ❤️ for service businesses</p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
+export default function Page() {
+  const mainRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const dot = document.getElementById("cur"), ring = document.getElementById("cur-ring");
-    if (!dot || !ring) return;
-    const fn = (e: MouseEvent) => { gsap.to(dot, { x: e.clientX, y: e.clientY, duration: .04 }); gsap.to(ring, { x: e.clientX, y: e.clientY, duration: .14 }); };
-    window.addEventListener("mousemove", fn);
-    return () => window.removeEventListener("mousemove", fn);
-  }, []);
-
-  useEffect(() => {
-    import("lenis").then(m => {
-      const lenis = new m.default({ lerp: .09, smoothWheel: true });
-      gsap.ticker.add(t => lenis.raf(t * 1000));
-      gsap.ticker.lagSmoothing(0);
-    }).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const el = document.getElementById("sc");
-    if (el) setTimeout(() => scramble(el, "NeverMiss", 900), 600);
-  }, []);
-
-  useEffect(() => {
+    // GSAP scroll-triggered reveal
     const ctx = gsap.context(() => {
-      gsap.set([".hn", ".hb", ".ht1", ".ht2", ".hs", ".hbtns", ".hphone", ".hstat"], { opacity: 0 });
-      gsap.set([".ht1", ".ht2"], { y: 60 });
-      gsap.set([".hb", ".hs", ".hbtns", ".hstat"], { y: 24 });
-      gsap.set(".hphone", { y: 50, scale: .95 });
-      gsap.timeline({ delay: .1 })
-        .to(".hn", { opacity: 1, duration: .5 })
-        .to(".hb", { opacity: 1, y: 0, duration: .6, ease: "power3.out" }, "-=.2")
-        .to(".ht1", { opacity: 1, y: 0, duration: 1, ease: "power4.out" }, "-=.3")
-        .to(".ht2", { opacity: 1, y: 0, duration: 1, ease: "power4.out" }, "-=.7")
-        .to(".hs", { opacity: 1, y: 0, duration: .8, ease: "power3.out" }, "-=.5")
-        .to(".hbtns", { opacity: 1, y: 0, duration: .7, ease: "power3.out" }, "-=.4")
-        .to(".hstat", { opacity: 1, y: 0, stagger: .08, duration: .6, ease: "power3.out" }, "-=.3")
-        .to(".hphone", { opacity: 1, y: 0, scale: 1, duration: 1.1, ease: "power3.out" }, "-=.6");
-      gsap.utils.toArray<HTMLElement>(".sr").forEach(el => {
-        gsap.set(el, { opacity: 0, y: 40 });
-        gsap.to(el, { opacity: 1, y: 0, duration: .8, ease: "power3.out", scrollTrigger: { trigger: el, start: "top 83%", once: true } });
+      gsap.utils.toArray<HTMLElement>(".reveal").forEach((el) => {
+        gsap.fromTo(el,
+          { opacity: 0, y: 32 },
+          {
+            opacity: 1, y: 0, duration: 0.7, ease: "power2.out",
+            scrollTrigger: { trigger: el, start: "top 88%", toggleActions: "play none none none" },
+          }
+        );
       });
-    }, root);
+    }, mainRef);
     return () => ctx.revert();
   }, []);
 
   return (
-    <>
-      <div id="cur" /><div id="cur-ring" /><div className="scanline" />
-
-      {/* Aurora */}
-      <div aria-hidden style={{ position: "fixed", inset: 0, zIndex: 0, overflow: "hidden", pointerEvents: "none" }}>
-        <div style={{ position: "absolute", top: "-15%", right: "-10%", width: 700, height: 700, borderRadius: "50%", background: "radial-gradient(circle,rgba(37,99,235,.12) 0%,transparent 65%)", filter: "blur(80px)" }} />
-        <div style={{ position: "absolute", top: "40%", left: "-10%", width: 550, height: 550, borderRadius: "50%", background: "radial-gradient(circle,rgba(6,182,212,.08) 0%,transparent 65%)", filter: "blur(90px)" }} />
-        <div style={{ position: "absolute", bottom: "10%", right: "15%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle,rgba(37,99,235,.07) 0%,transparent 65%)", filter: "blur(70px)" }} />
-        <div className="dot-grid" />
-      </div>
-
-      <div ref={root} style={{ position: "relative", zIndex: 2 }}>
-
-        {/* NAV */}
-        <nav className="hn" style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 clamp(20px,4vw,48px)", height: 62, background: "rgba(4,5,15,.88)", backdropFilter: "blur(24px)", borderBottom: "1px solid rgba(37,99,235,.08)" }}>
-          <span style={{ fontWeight: 900, fontSize: 20, letterSpacing: "-0.5px" }}>Never<span style={BG}>Miss</span></span>
-          <div className="nav-links" style={{ display: "flex", gap: 32, fontSize: 14, color: "#475569" }}>
-            {["How it works", "Pricing", "For who"].map((n, i) => (
-              <a key={i} href={`#s${i}`} style={{ color: "inherit", textDecoration: "none" }}
-                onMouseEnter={e => ((e.target as HTMLElement).style.color = "#60a5fa")}
-                onMouseLeave={e => ((e.target as HTMLElement).style.color = "#475569")}>{n}</a>
-            ))}
-          </div>
-          <MagBtn href="#contact" primary>Start free trial →</MagBtn>
-        </nav>
-
-        {/* HERO */}
-        <section style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "90px 24px 60px", textAlign: "center", position: "relative", overflow: "hidden" }}>
-
-          <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", alignItems: "center", width: "100%", maxWidth: 1100, margin: "0 auto" }}>
-
-            <div className="hb" style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(37,99,235,.08)", border: "1px solid rgba(37,99,235,.2)", borderRadius: 999, padding: "7px 18px", fontSize: 13, color: "#60a5fa", marginBottom: 36, fontWeight: 500 }}>
-              <span style={{ width: 7, height: 7, background: "#2563eb", borderRadius: "50%", boxShadow: "0 0 10px #2563eb", display: "inline-block" }} className="pulse-blue" />
-              14-day free trial · No credit card · Cancel anytime
-            </div>
-
-            <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 48, alignItems: "center", width: "100%", maxWidth: 1000 }}>
-              <div style={{ textAlign: "left" }}>
-                <h1 className="ht1" style={{ fontSize: "clamp(44px,7vw,88px)", fontWeight: 900, letterSpacing: "-3px", lineHeight: .95, marginBottom: 8 }}>
-                  Your phone rings.
-                </h1>
-                <h1 className="ht2" style={{ fontSize: "clamp(44px,7vw,88px)", fontWeight: 900, letterSpacing: "-3px", lineHeight: .95, marginBottom: 28 }}>
-                  <span id="sc" style={{ ...BG, backgroundSize: "200% auto" }} className="shimmer">NeverMiss</span> answers.
-                </h1>
-
-                <p className="hs" style={{ fontSize: "clamp(16px,2vw,20px)", color: "#64748b", maxWidth: 500, lineHeight: 1.65, marginBottom: 44 }}>
-                  AI voice agent that answers every call, qualifies leads, and books appointments — 24/7. You focus on the job. We handle the phone.
-                </p>
-
-                <div className="hbtns" style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 56 }}>
-                  <MagBtn href="#contact" primary big>Start free — 14 days →</MagBtn>
-                  <MagBtn href="#s0" big={false}>See how it works</MagBtn>
-                </div>
-
-                <div className="stats-row" style={{ display: "grid", gridTemplateColumns: "repeat(3,auto)", gap: 32 }}>
-                  {[
-                    { v: 40, s: "%", l: "of calls missed by contractors" },
-                    { v: 1500, prefix: "$", s: "+", l: "lost per week on average" },
-                    { v: 149, prefix: "$", s: "/mo", l: "flat — no surprises" },
-                  ].map((s, i) => (
-                    <div key={i} className="hstat">
-                      <div style={{ fontSize: "clamp(28px,3.5vw,42px)", fontWeight: 900, letterSpacing: "-1.5px", ...BG, lineHeight: 1 }}>
-                        <Counter to={s.v} prefix={s.prefix || ""} suffix={s.s} />
-                      </div>
-                      <div style={{ fontSize: 12, color: "#475569", maxWidth: 120, lineHeight: 1.4, marginTop: 4 }}>{s.l}</div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="hphone" style={{ flexShrink: 0 }}>
-                <PhoneHero />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* MARQUEE */}
-        <div style={{ overflow: "hidden", padding: "18px 0", borderTop: "1px solid rgba(37,99,235,.07)", borderBottom: "1px solid rgba(37,99,235,.07)", background: "rgba(0,0,0,.3)" }}>
-          <div className="mq">
-            {[...Array(2)].flatMap(() => NICHES.map((n, i) => (
-              <div key={`${n}${i}`} style={{ display: "flex", alignItems: "center", gap: 20, paddingRight: 40, whiteSpace: "nowrap" }}>
-                <span style={{ fontSize: 13, fontWeight: 500, color: "#334155" }}>📞 {n}</span>
-                <span style={{ color: "#1e293b", fontSize: 8 }}>◆</span>
-              </div>
-            )))}
-          </div>
-        </div>
-
-        {/* PROBLEM */}
-        <section id="s0" style={{ padding: "80px 24px 100px" }}>
-          <div style={{ maxWidth: 820, margin: "0 auto" }}>
-            <div className="sr" style={{ marginBottom: 64 }}>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(37,99,235,.07)", border: "1px solid rgba(37,99,235,.15)", borderRadius: 999, padding: "6px 16px", fontSize: 13, color: "#60a5fa", fontWeight: 500, marginBottom: 16 }}>The problem</div>
-              <h2 style={{ fontSize: "clamp(28px,4.5vw,56px)", fontWeight: 900, letterSpacing: "-1.5px", lineHeight: 1.05 }}>
-                You're paying Google to<br /><span style={BG}>send you calls you can't answer.</span>
-              </h2>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16 }} className="how-grid">
-              {[
-                { e: "📲", t: "40% of calls go to voicemail", d: "When you're on a job, under a sink, on a roof — you can't pick up. That customer calls your competitor instead." },
-                { e: "🌙", t: "60% of calls happen off-hours", d: "Evenings and weekends are prime time for emergency calls. Your voicemail doesn't close deals." },
-                { e: "💸", t: "$1,500+ lost every week", d: "5 missed calls at $300 each = $1,500/week in lost revenue. That's $78,000/year walking out the door." },
-              ].map((c, i) => (
-                <div key={i} className="sr" style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(37,99,235,.09)", borderRadius: 18, padding: "28px 24px" }}>
-                  <div style={{ fontSize: 32, marginBottom: 14 }}>{c.e}</div>
-                  <h3 style={{ fontSize: 17, fontWeight: 700, marginBottom: 10, letterSpacing: "-.2px" }}>{c.t}</h3>
-                  <p style={{ fontSize: 14, color: "#475569", lineHeight: 1.65 }}>{c.d}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* HOW IT WORKS */}
-        <section id="s1" style={{ padding: "60px 24px 100px", background: "rgba(0,0,0,.3)", borderTop: "1px solid rgba(37,99,235,.06)" }}>
-          <div style={{ maxWidth: 820, margin: "0 auto" }}>
-            <div className="sr" style={{ marginBottom: 56 }}>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(37,99,235,.07)", border: "1px solid rgba(37,99,235,.15)", borderRadius: 999, padding: "6px 16px", fontSize: 13, color: "#60a5fa", fontWeight: 500, marginBottom: 16 }}>How it works</div>
-              <h2 style={{ fontSize: "clamp(28px,4.5vw,56px)", fontWeight: 900, letterSpacing: "-1.5px", lineHeight: 1.05 }}>
-                Up and running<br /><span style={BG}>in 10 minutes.</span>
-              </h2>
-            </div>
-            {[
-              { n: "01", e: "📞", t: "You get a business phone number", d: "We give you a local US number (or forward your existing one). Customers call it like any other business number." },
-              { n: "02", e: "🤖", t: "NeverMiss AI picks up instantly", d: "Our AI greets callers in your name, understands their request, and handles the conversation naturally — 24/7." },
-              { n: "03", e: "📅", t: "Appointment booked, you get notified", d: "The AI books the job directly into your calendar and sends you a text with the lead details. You show up and get paid." },
-            ].map((s, i) => (
-              <div key={i} className="sr" style={{ display: "grid", gridTemplateColumns: "68px 1fr", gap: 24, padding: "32px 0", borderBottom: i < 2 ? "1px solid rgba(255,255,255,.04)" : "none", alignItems: "flex-start" }}>
-                <div style={{ width: 56, height: 56, borderRadius: 16, background: "rgba(37,99,235,.08)", border: "1px solid rgba(37,99,235,.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>{s.e}</div>
-                <div>
-                  <div style={{ fontSize: 10, color: "#60a5fa", fontWeight: 700, letterSpacing: 2, marginBottom: 7, textTransform: "uppercase" }}>Step {s.n}</div>
-                  <h3 style={{ fontSize: 21, fontWeight: 700, marginBottom: 8, letterSpacing: "-.3px" }}>{s.t}</h3>
-                  <p style={{ fontSize: 15, color: "#475569", lineHeight: 1.65, maxWidth: 480 }}>{s.d}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* FOR WHO */}
-        <section id="s2" style={{ padding: "80px 24px 100px" }}>
-          <div style={{ maxWidth: 820, margin: "0 auto" }}>
-            <div className="sr" style={{ marginBottom: 48 }}>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(37,99,235,.07)", border: "1px solid rgba(37,99,235,.15)", borderRadius: 999, padding: "6px 16px", fontSize: 13, color: "#60a5fa", fontWeight: 500, marginBottom: 16 }}>Built for</div>
-              <h2 style={{ fontSize: "clamp(28px,4.5vw,56px)", fontWeight: 900, letterSpacing: "-1.5px", lineHeight: 1.05 }}>
-                Any contractor who can't afford<br /><span style={BG}>to miss a single call.</span>
-              </h2>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 12 }}>
-              {NICHES.map((n, i) => (
-                <div key={i} className="sr" style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(37,99,235,.08)", borderRadius: 14, padding: "18px 20px", display: "flex", alignItems: "center", gap: 12, transition: ".2s" }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(37,99,235,.3)"; (e.currentTarget as HTMLElement).style.background = "rgba(37,99,235,.05)"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(37,99,235,.08)"; (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.03)"; }}>
-                  <span style={{ fontSize: 20 }}>📞</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: "#94a3b8" }}>{n}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* PRICING */}
-        <section id="s3" style={{ padding: "80px 24px 100px", background: "rgba(0,0,0,.3)", borderTop: "1px solid rgba(37,99,235,.06)" }}>
-          <div style={{ maxWidth: 780, margin: "0 auto" }}>
-            <div className="sr" style={{ marginBottom: 48, textAlign: "center" }}>
-              <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(37,99,235,.07)", border: "1px solid rgba(37,99,235,.15)", borderRadius: 999, padding: "6px 16px", fontSize: 13, color: "#60a5fa", fontWeight: 500, marginBottom: 16 }}>Pricing</div>
-              <h2 style={{ fontSize: "clamp(28px,4.5vw,56px)", fontWeight: 900, letterSpacing: "-1.5px", lineHeight: 1.05 }}>
-                Less than one<br /><span style={BG}>missed call.</span>
-              </h2>
-              <p style={{ color: "#475569", fontSize: 16, marginTop: 16 }}>One missed call = $300 lost. NeverMiss costs $149/month. The math is obvious.</p>
-            </div>
-            <div className="sr pricing-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-              <div style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(37,99,235,.1)", borderRadius: 22, padding: "40px 36px" }}>
-                <div style={{ fontSize: 13, color: "#475569", marginBottom: 8 }}>Starter</div>
-                <div style={{ fontSize: 60, fontWeight: 900, letterSpacing: "-3px", ...BG, lineHeight: 1 }}>$149</div>
-                <div style={{ fontSize: 13, color: "#334155", marginBottom: 32 }}>per month · no contract</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 13, marginBottom: 36 }}>
-                  {["Up to 200 calls/month", "Local US phone number", "24/7 AI answering", "Appointment booking", "Lead qualification", "SMS notification", "Call recordings", "Cancel anytime"].map((f, i) => (
-                    <div key={i} style={{ display: "flex", gap: 11, alignItems: "center", fontSize: 14 }}>
-                      <div style={{ width: 20, height: 20, borderRadius: "50%", background: "linear-gradient(135deg,#2563eb,#06b6d4)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <span style={{ color: "#fff", fontSize: 10, fontWeight: 800 }}>✓</span>
-                      </div>
-                      <span style={{ color: "#94a3b8" }}>{f}</span>
-                    </div>
-                  ))}
-                </div>
-                <MagBtn href="#contact" primary>Start free trial →</MagBtn>
-              </div>
-              <div style={{ padding: 2, borderRadius: 24, background: "linear-gradient(135deg,#2563eb,#06b6d4,#2563eb)", backgroundSize: "300%", animation: "gb 4s ease infinite" }}>
-                <div style={{ background: "#04050f", borderRadius: 22, padding: "40px 36px", height: "100%" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                    <span style={{ fontSize: 13, color: "#475569" }}>Growth</span>
-                    <span style={{ background: "rgba(37,99,235,.1)", color: "#60a5fa", fontSize: 11, fontWeight: 700, borderRadius: 99, padding: "3px 10px", border: "1px solid rgba(37,99,235,.2)" }}>Most popular</span>
-                  </div>
-                  <div style={{ fontSize: 60, fontWeight: 900, letterSpacing: "-3px", ...BG, lineHeight: 1 }}>$249</div>
-                  <div style={{ fontSize: 13, color: "#334155", marginBottom: 32 }}>per month · no contract</div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 13, marginBottom: 36 }}>
-                    {["Unlimited calls", "2 phone numbers", "Everything in Starter", "Custom AI personality & script", "CRM integration (HubSpot, Salesforce)", "Weekly performance reports", "Priority support", "Onboarding call included"].map((f, i) => (
-                      <div key={i} style={{ display: "flex", gap: 11, alignItems: "center", fontSize: 14 }}>
-                        <div style={{ width: 20, height: 20, borderRadius: "50%", background: "linear-gradient(135deg,#2563eb,#06b6d4)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                          <span style={{ color: "#fff", fontSize: 10, fontWeight: 800 }}>✓</span>
-                        </div>
-                        <span style={{ color: "#94a3b8" }}>{f}</span>
-                      </div>
-                    ))}
-                  </div>
-                  <MagBtn href="#contact" primary>Start free trial →</MagBtn>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* CTA */}
-        <section id="contact" style={{ padding: "80px 24px 112px" }}>
-          <div style={{ maxWidth: 560, margin: "0 auto", textAlign: "center" }}>
-            <div className="sr">
-              <h2 style={{ fontSize: "clamp(28px,4.5vw,56px)", fontWeight: 900, letterSpacing: "-1.5px", lineHeight: 1.05, marginBottom: 14 }}>
-                Stop losing jobs<br /><span style={BG}>to voicemail.</span>
-              </h2>
-              <p style={{ color: "#475569", fontSize: 17, marginBottom: 44, lineHeight: 1.65 }}>
-                14-day free trial. Up and running in 10 minutes. No credit card required.
-              </p>
-              {sent ? (
-                <div style={{ background: "rgba(37,99,235,.07)", border: "1px solid rgba(37,99,235,.18)", borderRadius: 16, padding: "28px", fontSize: 18, color: "#60a5fa", fontWeight: 600 }}>
-                  🎉 You're on the list! We'll reach out within the hour.
-                </div>
-              ) : (
-                <form onSubmit={e => { e.preventDefault(); if (email) setSent(true); }}
-                  style={{ display: "flex", gap: 9, maxWidth: 460, margin: "0 auto", flexWrap: "wrap", justifyContent: "center" }}>
-                  <input type="email" placeholder="your@email.com" value={email} onChange={e => setEmail(e.target.value)} required
-                    style={{ flex: 1, minWidth: 200, background: "rgba(255,255,255,.05)", border: "1.5px solid rgba(37,99,235,.15)", borderRadius: 12, padding: "14px 18px", color: "#f0f4ff", fontSize: 15, outline: "none", fontFamily: "inherit" }}
-                    onFocus={e => { (e.target as HTMLInputElement).style.borderColor = "rgba(37,99,235,.5)"; }}
-                    onBlur={e => { (e.target as HTMLInputElement).style.borderColor = "rgba(37,99,235,.15)"; }} />
-                  <button type="submit" style={{ background: "linear-gradient(135deg,#2563eb,#06b6d4)", color: "#fff", padding: "14px 28px", borderRadius: 12, fontSize: 15, fontWeight: 700, border: "none", cursor: "none", fontFamily: "inherit", boxShadow: "0 8px 24px rgba(37,99,235,.35)" }}>
-                    Start free →
-                  </button>
-                </form>
-              )}
-              <p style={{ marginTop: 16, fontSize: 13, color: "#334155" }}>
-                Or email us at <a href="mailto:contact@mindforge-ia.com" style={{ color: "#60a5fa", textDecoration: "none" }}>contact@mindforge-ia.com</a>
-              </p>
-            </div>
-          </div>
-        </section>
-
-        {/* FOOTER */}
-        <footer style={{ padding: "24px clamp(20px,4vw,48px)", borderTop: "1px solid rgba(37,99,235,.07)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, background: "rgba(0,0,0,.4)" }}>
-          <span style={{ fontWeight: 900, fontSize: 17 }}>Never<span style={BG}>Miss</span></span>
-          <span style={{ fontSize: 13, color: "#334155" }}>© 2026 NeverMiss · All rights reserved</span>
-          <a href="mailto:contact@mindforge-ia.com" style={{ fontSize: 13, color: "#334155", textDecoration: "none" }}>contact@mindforge-ia.com</a>
-        </footer>
-      </div>
-    </>
+    <div ref={mainRef} style={{ background: C.bg, minHeight: "100vh" }}>
+      <Nav />
+      <Hero />
+      <StatsBar />
+      <TheProblem />
+      <HowItWorks />
+      <BeforeAfter />
+      <Features />
+      <Integrations />
+      <ComparisonTable />
+      <Industries />
+      <Testimonials />
+      <Pricing />
+      <FAQ />
+      <FinalCTA />
+      <Footer />
+    </div>
   );
 }
